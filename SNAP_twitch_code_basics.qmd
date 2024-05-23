@@ -1,0 +1,56 @@
+---
+title: "SNAP_twitch"
+format: html
+editor: visual
+---
+
+## Setup
+
+Add any packages or libraries you want here
+```{r}
+rm(list=ls()) # clear any previous stuff real quick
+
+if(!require('sna')) {
+  install.packages('sna')
+  library('sna')
+}
+
+if (!"igraph" %in% installed.packages()) install.packages("igraph")
+
+sessionInfo() # this just prints out the packages, just to double check that the imports worked as expected
+```
+
+Setup the data
+
+```{r}
+###################### IMPORTANT################
+setwd('***') # replace *** with directory path
+################################################
+
+# generate dataframes from the dataset
+large_twitch_edges <- read.csv("large_twitch_edges.csv") # stuff in parentheses needs to match the file name of the dataset
+large_twitch_features <- read.csv("large_twitch_features.csv")
+
+# Take a subset of the data
+twitch_edges <- large_twitch_edges[0:2000,] # can change the 2000 to however many rows you want
+twitch_features <- large_twitch_features[0:2000,] # these and the large versions above are "dataframes", whatever those are
+
+# alternative data formats for the data
+twitch_edge_matrix <- data.matrix(twitch_edges) # matrix format
+twitch_edge_graph <- graph_from_data_frame(twitch_edges) # graph format
+twitch_network <- as.network.matrix(twitch_edges, matrix.type = "edgelist") # generates a network
+```
+
+
+## Social Network Analysis
+Actually do some Social Networks stuff finally
+
+```{r}
+# these do what you would expect, make sure that you ran the package importing chunk first
+centralization(twitch_network,g=3,degree)
+betweenness(g)
+
+# one way to generate a visualization
+plot(tiny_graph, vertex.size = 8, 
+     layout = layout_with_fr(tiny_graph) )
+```
