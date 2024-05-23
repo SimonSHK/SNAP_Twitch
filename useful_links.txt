@@ -1,0 +1,4 @@
+- SNAP page of dataset: https://snap.stanford.edu/data/twitch_gamers.html
+- Dataset github: https://github.com/benedekrozemberczki/datasets?tab=readme-ov-file#twitch-gamers
+- Our Google Drive Folder: https://drive.google.com/drive/folders/1181ublBMceySnYSOolpak6PzEJRcnVg4?usp=drive_link
+- Our Canva Project Proposal Slideshow: https://www.canva.com/design/DAGDSG5HsFQ/Ek8beWlZ0FUoTo4d-9E51g/edit?utm_content=DAGDSG5HsFQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
