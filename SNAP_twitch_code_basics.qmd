@@ -24,7 +24,8 @@ Setup the data
 
 ```{r}
 ###################### IMPORTANT################
-setwd('***') # replace *** with directory path
+# setwd('***') # replace *** with directory path
+setwd('/Users/skim/Documents/Grad School/Classes/Spring 2024/Social Networks/SNAP/SNAP')
 ################################################
 
 # generate dataframes from the dataset
@@ -40,7 +41,19 @@ twitch_edge_matrix <- data.matrix(twitch_edges) # matrix format
 twitch_edge_graph <- graph_from_data_frame(twitch_edges) # graph format
 twitch_network <- as.network.matrix(twitch_edges, matrix.type = "edgelist") # generates a network
 ```
+```{r}
+large_graph <- graph_from_data_frame(large_twitch_edges)
+large_matrix <- data.matrix(large_twitch_edges)
+large_matrix[0:10,]
+large_graph[0:10,]
+large_degrees <- degree(large_matrix)
+large_degrees[0:10]
+length(large_degrees)
+shape(large_twitch_edges)
 
+# write.csv(twitch_edge, "twitch_edges.csv")
+# write.csv(twitch_edges, "twitch_edges_2000.csv")
+```
 
 ## Social Network Analysis
 Actually do some Social Networks stuff finally
@@ -54,3 +67,52 @@ betweenness(g)
 plot(tiny_graph, vertex.size = 8, 
      layout = layout_with_fr(tiny_graph) )
 ```
+
+Get top n viewed accounts and all their edges
+```{r}
+# get num of top viewed accounts
+num_top_views <- 5
+view_order <- twitch_features[order(twitch_features$views, decreasing = TRUE),]
+# view_order[0:num_top_views,]
+top_view_ids <- view_order[0:num_top_views,]
+top_view_ids <- top_view_ids["numeric_id"]
+top_view_ids <- top_view_ids[,1]
+# top_view_ids
+# head(view_order)
+# class(view_order)
+# head(large_twitch_edges)
+# get all connected nodes 
+top_view_edges <- large_twitch_edges %>% filter(numeric_id_1 %in% top_view_ids | numeric_id_2 %in% top_view_ids)
+
+attached_top_ids <- unique(c(nodes[,1], nodes[,2]))
+attached_top_features <- large_twitch_features[(attached_top_ids + 1),] # all the rows of nodes attached to the top viewers
+
+write.csv(top_view_ids, "attached_top_features.csv")
+write.csv(top_view_edges, "top_edges.csv")
+```
+
+Get random users and their attached edges 
+```{r}
+# get random indexes in the dataset
+######################
+num_nodes <- 100 # change this number to set number of central nodes
+######################
+rand_num_ids <- sample(1:dim(large_twitch_features)[1], num_nodes)
+
+
+nodes <- large_twitch_edges %>% filter(numeric_id_1 %in% rand_num_ids | numeric_id_2 %in% rand_num_ids)
+dim(nodes)
+attached_ids <- unique(c(nodes[,1], nodes[,2]))
+
+random_node_features <- large_twitch_features[(attached_ids + 1),]
+
+write.csv(random_node_features, "random_island_features.csv")
+write.csv(nodes, "random_island_edges.csv")
+```
+
+
+
+
+
+
+
