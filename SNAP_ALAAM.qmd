@@ -1,0 +1,226 @@
+---
+title: "SNAP_ALAAM"
+format: html
+editor: visual
+---
+
+## Setup
+
+Imports
+
+```{r}
+rm(list=ls())
+
+list.of.packages <- c("mvtnorm", "xtable","statnet","dplyr", "MASS", "coda", "devtools")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+library(devtools)
+library(mvtnorm)
+library(xtable)
+library(statnet)
+library(dplyr)
+library(MASS)
+library(coda)
+
+source("https://raw.githubusercontent.com/johankoskinen/ALAAM/main/MultivarALAAMalt.R")
+
+if(!require('sna')) {
+  install.packages('sna')
+  library('sna')
+}
+if (!"igraph" %in% installed.packages()) install.packages("igraph")
+
+# session_info()
+list.files()
+```
+
+Set data
+
+```{r}
+twitch_features_data <- "random_features.csv"
+twitch_edge_data <- "random_edges.csv"
+twitch_adj_mat <- "rand_adj.mat.csv"
+
+adj_twitch <- as.matrix(read.csv("rand_adj_mat.csv", row.names=1, header=T))
+att_twitch <- read.csv("random_features.csv", header=T)
+net_twitch <- as.network(adj_twitch, directed=F)
+
+```
+
+*TODO*
+Define "calculate_network_vars" function
+
+```{r}
+calculate_network_vars <- function (adj, net, att) {
+  
+  n <- nrow(adj)
+  
+  structural_effects <- data.frame(
+    degree <- matrix(rowSums(adj), n, 1)
+    # two_star <- 
+    # three_star <-
+    # triangles <-
+    
+  )
+  colnames(structural_effects) <- c("degree")
+  
+  ###TODO###
+    # Calculate alter effects
+  alter_effects <- data.frame(
+    alt_out_av_mature = ifelse(structural_effects$degree == 0, NA, (adj %*% (net %v% "mature")) / structural_effects$degree),
+    alt_out_av_homophily_language = ifelse(structural_effects$degree == 0, NA, ((adj %*% (net %v% "language")) * (net %v% "language")) / structural_effects$degree)
+  )
+  colnames(alter_effects) <- c("alt_out_av_mature", "alt_out_av_homophily_language")
+
+  # Combine calculated variables with the attribute dataframe
+  att <- cbind(att, structural_effects, alter_effects)
+  
+  return(att)
+}
+
+att_twitch <- calculate_network_vars(adj_twitch, net_twitch, att_twitch)  
+```
+
+*TODO*
+Hypotheses
+
+```{r}
+# Choose and binarize dependent variable (DV) ----------------------------------
+# Dichotomize the DV (knowledge_hiding) at the within-team mean
+att_twitch$views_binary <- ifelse(att_twitch$"views" >= ave(att_twitch$"views", att_twitch$numeric_id, FUN = function(x) mean(x)), 1, 0)
+
+att_twitch <- att_twitch %>% relocate(views_binary, .after = views)
+
+###TODO###
+# Choose independent variables ("covariates") ----------------------------------
+chosenVars <- c(
+  "views",
+  "degree",
+  "life_time",
+  "mature",
+  "language"
+)
+numcovs <- length(chosenVars) # number of covariates
+
+covs_twitch <- att_twitch[, chosenVars] 
+```
+
+Initialize the model
+
+```{r}
+# Format Dependent Variable ----------------------------------------------------
+DV_twitch <- att_twitch[, "views_binary"]
+
+# Format Covariates ------------------------------------------------------------
+# convert all values to numeric
+covs_twitch <- covs_twitch %>% mutate_if(is.character,as.numeric) 
+
+# replace NAs with 0
+covs_twitch[is.na(covs_twitch)] = 0  
+
+# convert the covs dataframe to a matrix object
+covs_twitch <- as.matrix(covs_twitch) 
+
+```
+
+Running the model
+
+```{r}
+
+# Run 0 to create initial covariance matrix
+# You will see it says p: 7 because we included 5 covariates + 1 contagion + 1 intercept
+simple_model <- BayesALAAM(y = DV_twitch,   # dependent variable
+                    ADJ = adj_twitch,  # network
+                    covariates = covs_twitch,   # covariates
+                    directed = T,        # directed / undirected network
+                    Iterations = 5000,   # number of iterations
+                    burnin = 100,
+                    contagion = c('simple'), # contagion effect(s)
+                    saveFreq = 500
+)
+
+```
+
+Plot MCMC data on ALAAM thetas
+
+```{r}
+#| label: simple model MCMC
+# Now taking a look at the MCMC output in trace plots:
+plot(ts(simple_model$Thetas))
+```
+
+
+
+```{r}
+#| label: model 1
+# You can improve the mixing by using a better proposal covariance
+# This proposal variance (covariance) matrix, directly regulates how big jumps we are proposing 
+# use the covariance matrix from the previous run 
+Propsigma <- cov(simple_model$Theta)
+# and increase the number of iterations to 20,000 and run the model again
+advanced <- BayesALAAM(y = DV_twitch,
+                    ADJ = adj_twitch,
+                    covariates = covs_twitch,
+                    directed = T,
+                    Iterations = 20000,
+                    burnin = 100,
+                    contagion = c('simple'),
+                    saveFreq = 500,
+                    PropSigma=Propsigma
+)
+```
+
+Complex Model MCMC 
+
+```{r}
+#| label: model 1 MCMC
+# Again, plot and examine the MCMC output in trace plots 
+plot(ts(advanced_model$Thetas))
+```
+
+Advanced model summary
+
+```{r}
+#| label: model 1 summary
+# If you are satisfied with the mixing shown in the trace plots, plot and save the posteriors draws to a PDF:
+# plotPost(ALAAMresult=res.1_US, figname="ALAAM_posteriors_US")
+# In the ACF plots (printed in the PDF above), 
+# you should see that lags 10 and 30 correspond to the output table from BayesALAAM
+
+# Since we are satisfied with the performance of the algorithm, produce a results table
+write.res.table(burnin=1, # should be set sufficiently high
+                datamat = advanced_model$Thetas, # the result from BayesALAAM
+                thin = 1, # should be set so that SACF is sufficiently low, important for CI
+                tabname="ALAAM_results_twitch" ) # the name appended to the table that is saved
+temp <- read.csv( "ALAAM_results_twitch.csv" )
+temp <- cbind(temp, ESS=advanced_model$ResTab[,"ESS"])
+temp <- cbind(temp, SACF10=advanced_model$ResTab[,"SACF 10"])
+temp <- cbind(temp, SACF30=advanced_model[,"SACF 30"])
+# write.csv(temp,  "ALAAM_results_US.csv", row.names=F)
+# file.show("ALAAM_results_US.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The `echo: false` option disables the printing of code (only output is displayed).

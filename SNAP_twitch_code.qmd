@@ -1,0 +1,283 @@
+---
+title: "SNAP_twitch"
+format: html
+editor: visual
+---
+
+## Setup
+
+Add any packages or libraries you want here
+```{r}
+rm(list=ls()) # clear any previous stuff real quick
+
+if(!require('sna')) {
+  install.packages('sna')
+  library('sna')
+}
+if(!require('dplyr')) {
+  install.packages('dplyr')
+  library('dplyr')
+}
+if (!"dplyr" %in% installed.packages()) install.packages("dplyr")
+if (!"igraph" %in% installed.packages()) install.packages("igraph")
+if (!"netdiffuseR" %in% installed.packages()) install.packages("netdiffuseR")
+library(netdiffuseR)
+sessionInfo() # this just prints out the packages, just to double check that the imports worked as expected
+```
+
+Setup the data
+
+```{r}
+###################### IMPORTANT################
+# setwd('***') # replace *** with directory path
+setwd('/Users/skim/Documents/Grad School/Classes/Spring 2024/Social Networks/SNAP/SNAP')
+################################################
+
+# generate dataframes from the dataset
+large_twitch_edges <- read.csv("large_twitch_edges.csv") # stuff in parentheses needs to match the file name of the dataset
+large_twitch_features <- read.csv("large_twitch_features.csv")
+
+# Take a subset of the data
+twitch_edges <- large_twitch_edges[0:2000,] # can change the 2000 to however many rows you want
+twitch_features <- large_twitch_features[0:2000,] # these and the large versions above are "dataframes", whatever those are
+
+# alternative data formats for the data
+twitch_edge_matrix <- data.matrix(twitch_edges) # matrix format
+# twitch_edge_matrix
+twitch_edge_graph <- graph_from_data_frame(twitch_edges) # graph format
+twitch_edge_graph
+t_n <- as.network.matrix(twitch_edges)
+t_n
+twitch_network <- as.network.matrix(twitch_edges, matrix.type = "edgelist") # generates a network
+# twitch_network <- as.network.matrix(twitch_edges, matrix.type = "adjacency") # generates a network
+twitch_network
+print(twitch_network)
+adj_mat <- edgelist_to_adjmat(twitch_edges)
+adj_mat
+
+write.csv(twitch_network, "twitch_network.csv")
+head(large_twitch_adj_mat)
+
+
+# library(usethis)
+# usethis::edit_r_environ()
+# large_twitch_adj_mat <- edgelist_to_adjmat(large_twitch_edges)
+# # as.matrix(large_twitch_adj_mat)
+# large_adj_mat_df <- as.data.frame(as.matrix(large_twitch_adj_mat))
+# write.csv(large_twitch_adj_mat_df, "large_twitch_adj_mat.csv")
+```
+```{r}
+set.seed(123)
+population <- data.frame(
+  Supermarket = paste("Supermarket", 1:1000, sep = "_"),
+  CustomerSatisfaction = rnorm(1000, mean = 75, sd = 10)
+)
+
+# Single-Stage Cluster Sampling
+selected_supermarkets <- sample(population$Supermarket, size = 10, replace = FALSE)
+sampled_data <- population[population$Supermarket %in% selected_supermarkets, ]
+
+# Display Sampled Data
+head(sampled_data)
+```
+
+Change language column to numbers
+```{r}
+twitch_features <- large_twitch_features
+diff_languages <- unique(twitch_features["language"])
+diff_languages$num = c(1:dim(diff_languages)[1])
+diff_languages
+twitch_features$language
+
+for (x in 1:dim(diff_languages[1])) {
+  twitch_features$language[twitch_features$language == diff_languages[x,1]] <- diff_languages[x,2]
+}
+
+twitch_features$language
+head(twitch_features)
+write.csv(twitch_features, "large_twitch_features_lang_mod.csv")
+```
+
+
+Tests: Change language column to numbers
+```{r}
+twitch_features <- large_twitch_features[0:2000,]
+diff_languages <- unique(twitch_features["language"])
+diff_languages
+
+dim(diff_languages)[1]
+diff_languages$num = c(1:dim(diff_languages)[1])
+diff_languages
+
+twitch_features$language
+head(twitch_features)
+# twitch_features$language %in% diff_languages[,1]
+# twitch_language_nums <- replace(twitch_features$language, twitch_features$language %in% diff_languages[,1], diff_languages[,2])
+# twitch_language_nums
+
+for (x in 1:dim(diff_languages[1])) {
+  twitch_features$language[twitch_features$language == diff_languages[x,1]] <- diff_languages[x,2]
+}
+twitch_features$language
+look <- tibble::tibble(
+  old = diff_languages[,1],
+  new = diff_languages[,2]
+)
+
+# mutate(twitch_features, language = wher)
+
+# recode(twitch_features["language"], lookup(look$old, look$new))
+# mutate(twitch_features["language"], )
+lang_list = as.list(twitch_features["language"])
+# lang = tibble::tibble(as.list(lang_list = lang_list)
+
+# lapply
+# mutate(twitch_features["language"], )
+```
+
+
+```{r}
+large_graph <- graph_from_data_frame(large_twitch_edges)
+large_matrix <- data.matrix(large_twitch_edges)
+large_matrix[0:10,]
+large_graph[0:10,]
+large_degrees <- degree(large_matrix)
+large_degrees[0:10]
+length(large_degrees)
+shape(large_twitch_edges)
+
+# write.csv(twitch_edge, "twitch_edges.csv")
+# write.csv(twitch_edges, "twitch_edges_2000.csv")
+```
+
+## Social Network Analysis
+Actually do some Social Networks stuff finally
+
+```{r}
+# these do what you would expect, make sure that you ran the package importing chunk first
+centralization(twitch_network,g=3,degree)
+betweenness(g)
+
+# one way to generate a visualization
+plot(tiny_graph, vertex.size = 8, 
+     layout = layout_with_fr(tiny_graph) )
+```
+
+Get top n viewed accounts and all their edges
+```{r}
+# get num of top viewed accounts
+num_top_views <- 3
+view_order <- twitch_features[order(twitch_features$views, decreasing = TRUE),]
+# view_order[0:num_top_views,]
+top_view_ids <- view_order[0:num_top_views,]
+top_view_ids <- top_view_ids["numeric_id"]
+top_view_ids <- top_view_ids[,1]
+# top_view_ids
+# head(view_order)
+# class(view_order)
+# head(large_twitch_edges)
+# get all connected nodes 
+top_view_edges <- large_twitch_edges %>% filter(numeric_id_1 %in% top_view_ids | numeric_id_2 %in% top_view_ids)
+
+attached_top_ids <- unique(c(top_view_edges[,1], top_view_edges[,2]))
+# attached_top_ids
+attached_top_features <- large_twitch_features[(attached_top_ids + 1),] # all the rows of nodes attached to the top viewers
+
+top_adj_mat <- edgelist_to_adjmat(top_view_edges)
+top_adj_mat_df <- as.data.frame(as.matrix(top_adj_mat))
+
+# class(top_adj_mat)
+# replace(top_adj_mat, ".", 0)
+# top_adj_mat[top_adj_mat != 1] <- 0
+# top_adj_mat
+# unique(top_adj_mat)
+# 
+# top_adj_df<- as.data.frame(top_adj_mat)
+# replace(top_adj_df, ".", 0)
+
+write.csv(attached_top_features, "top_features.csv")
+write.csv(top_view_edges, "top_edges.csv")
+write.csv(top_adj_mat_df, "top_adj_mat.csv")
+```
+
+Get random users and their attached edges 
+```{r}
+# get random indexes in the dataset
+######################
+num_nodes <- 100 # change this number to set number of central nodes
+######################
+rand_num_ids <- sample(1:dim(large_twitch_features)[1], num_nodes)
+
+
+nodes <- large_twitch_edges %>% filter(numeric_id_1 %in% rand_num_ids | numeric_id_2 %in% rand_num_ids)
+dim(nodes)
+attached_ids <- unique(c(nodes[,1], nodes[,2]))
+
+random_node_features <- large_twitch_features[(attached_ids + 1),]
+
+write.csv(random_node_features, "random_island_features.csv")
+write.csv(nodes, "random_island_edges.csv")
+```
+
+Random nodes
+```{r}
+twitch_features
+# get random indexes in the dataset
+######################
+num_nodes <- 5000 # change this number to set number of central nodes
+######################
+# get random ids
+rand_num_ids <- sample(1:dim(twitch_features)[1], num_nodes)
+rand_num_ids
+# get all associated edges
+rand_edges <- large_twitch_edges %>% filter(numeric_id_1 %in% rand_num_ids & numeric_id_2 %in% rand_num_ids)
+rand_edges
+
+length<-length(rand_num_ids)
+# include all ids in the adjacency matrix
+for (x in 1:length(rand_num_ids)){
+  if (!(rand_num_ids[x] %in% rand_edges$numeric_id_1) & !(rand_num_ids[x] %in% rand_edges$numeric_id_2))   {
+    rand_edges = rbind(rand_edges, c(rand_num_ids[x], NA))
+  }
+}
+unique_rands <- unique(c(rand_edges[,1], rand_edges[,2]))
+# get the feature entries of the nodes
+rand_features <- twitch_features[(rand_num_ids + 1),]
+rand_features
+
+write.csv(rand_features, "random_features.csv")
+write.csv(rand_edges, "random_edges.csv")
+
+# nodes <- large_twitch_edges %>% filter(numeric_id_1 %in% rand_num_ids | numeric_id_2 %in% rand_num_ids)
+# dim(nodes)
+# attached_ids <- unique(c(nodes[,1], nodes[,2]))
+# 
+# random_node_features <- large_twitch_features[(attached_ids + 1),]
+# 
+# write.csv(random_node_features, "random_island_features.csv")
+# write.csv(nodes, "random_island_edges.csv")
+```
+Convert random sample to adjacency matrix
+```{r}
+rand_adj_mat <- edgelist_to_adjmat(rand_edges)
+rand_adj_mat_df <- as.data.frame(as.matrix(rand_adj_mat))
+
+write.csv(rand_adj_mat_df, "rand_adj_mat.csv")
+```
+
+Demo different data types
+
+```{r}
+small_edges <- large_twitch_edges[1:100, ]
+small_features <- large_twitch_features[1:100, ]
+
+small_matrix <- as.network.matrix(small_edges)
+small_matrix
+
+small_f_matrix <- as.matrix(small_features)
+small_f_matrix
+```
+ 
+
+
+
