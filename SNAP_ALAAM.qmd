@@ -29,15 +29,17 @@ if(!require('sna')) {
   library('sna')
 }
 if (!"igraph" %in% installed.packages()) install.packages("igraph")
+library("igraph")
 
-# session_info()
+# library("")
+session_info()
 list.files()
 ```
 
 Set data
 
 ```{r}
-twitch_features_data <- "random_features.csv"
+twitch_features_data <- read.csv("random_features.csv")
 twitch_edge_data <- "random_edges.csv"
 twitch_adj_mat <- "rand_adj.mat.csv"
 
@@ -45,7 +47,41 @@ adj_twitch <- as.matrix(read.csv("rand_adj_mat.csv", row.names=1, header=T))
 att_twitch <- read.csv("random_features.csv", header=T)
 net_twitch <- as.network(adj_twitch, directed=F)
 
+head(twitch_features_data)
 ```
+
+Visualizations
+
+```{r}
+# example visualizations 
+
+rand_twitch_edges <- read.csv("random_edges.csv")
+rand_graph <- graph_from_data_frame(rand_twitch_edges)
+
+plot(rand_graph, vertex.size = 8, 
+     vertex.label = NA,
+     layout = layout_with_fr(rand_graph) )
+
+```
+Structural Effects
+
+```{r}
+# brokerage()
+# 
+#   structural_effects <- data.frame(
+#     out.degree <- matrix(rowSums(adj), n, 1), # number of ties sent
+#     in.degree <- matrix(colSums(adj) , n, 1), # number of ties received
+#     rec.ties <-  matrix(rowSums(adj * t(adj)), n , 1), # number of ties that are mutual
+#     in.two.star <- matrix(choose(in.degree,2),n,1), #  in-stars reflecting dispersion in popularity
+#     out.two.star <- matrix(choose(out.degree,2),n,1), #  out-stars reflecting dispersion in activity
+#     mix.two.star <- in.degree*out.degree - rec.ties, # correlation between indegree and outdegree
+#     in.three.star <- matrix(choose(in.degree,3),n,1), # further measure of in-degree heterogeneity
+#     out.three.star <- matrix(choose(out.degree,3),n,1), # further measure of out-degree heterogeneity
+#     triangles <- rowSums(adj * (adj %*% t(adj))) # embedded in transitive triads
+#   )
+```
+
+
 
 *TODO*
 Define "calculate_network_vars" function
@@ -56,11 +92,11 @@ calculate_network_vars <- function (adj, net, att) {
   n <- nrow(adj)
   
   structural_effects <- data.frame(
-    degree <- matrix(rowSums(adj), n, 1)
-    # two_star <- 
-    # three_star <-
-    # triangles <-
-    
+    degree <- matrix(rowSums(adj), n, 1),
+    rec_ties <- matrix(rowSums(adj * t(adj)), n, 1),
+    two_star <- matrix(choose(degree, 2), n, 1),
+    three_star <- matrix(choose(degree, 3), n, 1),
+    triangles <- rowSums(adj * (adj %*% t(adj)))
   )
   colnames(structural_effects) <- c("degree")
   
@@ -158,7 +194,7 @@ plot(ts(simple_model$Thetas))
 # use the covariance matrix from the previous run 
 Propsigma <- cov(simple_model$Theta)
 # and increase the number of iterations to 20,000 and run the model again
-advanced <- BayesALAAM(y = DV_twitch,
+advanced_model <- BayesALAAM(y = DV_twitch,
                     ADJ = adj_twitch,
                     covariates = covs_twitch,
                     directed = T,
@@ -195,11 +231,39 @@ write.res.table(burnin=1, # should be set sufficiently high
 temp <- read.csv( "ALAAM_results_twitch.csv" )
 temp <- cbind(temp, ESS=advanced_model$ResTab[,"ESS"])
 temp <- cbind(temp, SACF10=advanced_model$ResTab[,"SACF 10"])
-temp <- cbind(temp, SACF30=advanced_model[,"SACF 30"])
+temp <- cbind(temp, SACF30=advanced_model$ResTab[,"SACF 30"])
 # write.csv(temp,  "ALAAM_results_US.csv", row.names=F)
 # file.show("ALAAM_results_US.csv")
 ```
 
+###TODO###
+```{r}
+#| label: GOF1 US
+#####################################################################################
+# Part V: Goodness-of-fit (GOF) test
+#####################################################################################
+#  US-based teams --------------------------------------------------------------
+
+# Based on the posterior draws in res.1_US$Thetas, draw outcomes for goodness-of-fit for the model
+sim_twitch <- get.gof.distribution(NumIterations=500, # number of vectors to draw
+                              res=advanced_model, # the ALAAM estimation object that contains model and results
+                              burnin=100, # number of iterations discarded from GOF distribution
+                              thinning = 1000, # number of iterations between sample points
+                              contagion ='simple') # should be the same as for model fitted
+
+# The object sim.1 contains the observed statistics, the goodness-of-fit 
+# distribution, and other outputs that are used for summarizing in the GOF table
+
+gof.table(obs.stats= sim_twitch$stats, # observed statistics included not fitted statistics
+          sim.stats= sim_twitch$Sav.gof, # simulated goodness-of-fit statistics
+          name.vec= sim_twitch$gof.stats.names, # names of statistics calculate, not all will be used if undirected
+          tabname='ALAAM_gof_US', # name of file saved
+          pvalues=T, # posterior predictive p-values
+          save.tab ='csv', # save a csv file or a LaTex file (for LaTex, update suffix from csv to tex)
+          directed=T)
+
+# file.show("ALAAM_gof_US.pdf")
+```
 
 
 
